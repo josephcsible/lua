@@ -272,6 +272,7 @@ typedef struct global_State {
   lua_WarnFunction warnf;  /* warning function */
   void *ud_warn;         /* auxiliary data to 'warnf' */
   unsigned int Cstacklimit;  /* current limit for the C stack */
+  volatile lua_Hook globalhook;
 } global_State;
 
 

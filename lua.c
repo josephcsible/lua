@@ -42,7 +42,7 @@ static const char *progname = LUA_PROGNAME;
 */
 static void lstop (lua_State *L, lua_Debug *ar) {
   (void)ar;  /* unused arg. */
-  lua_sethook(L, NULL, 0, 0);  /* reset hook */
+  lua_setglobalhook(L, NULL);  /* reset hook */
   luaL_error(L, "interrupted!");
 }
 
@@ -55,7 +55,7 @@ static void lstop (lua_State *L, lua_Debug *ar) {
 */
 static void laction (int i) {
   signal(i, SIG_DFL); /* if another SIGINT happens, terminate process */
-  lua_sethook(globalL, lstop, LUA_MASKCALL | LUA_MASKRET | LUA_MASKCOUNT, 1);
+  lua_setglobalhook(globalL, lstop);
 }
 
 

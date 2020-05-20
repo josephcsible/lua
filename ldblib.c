@@ -28,6 +28,13 @@ static const char *const HOOKKEY = "_HOOKKEY";
 
 
 /*
+** The hook function at registry[GLOBALHOOKKEY] contains the current
+** global hook function.
+*/
+static const char *const GLOBALHOOKKEY = "_GLOBALHOOKKEY";
+
+
+/*
 ** If L1 != L, L1 can be in any state, and therefore there are no
 ** guarantees about its stack space; any push in L1 must be
 ** checked.
@@ -307,23 +314,37 @@ static int db_upvaluejoin (lua_State *L) {
 }
 
 
+static void commonhookf (lua_State *L, lua_Debug *ar) {
+  static const char *const hooknames[] =
+    {"call", "return", "line", "count", "tail call"};
+  lua_pushstring(L, hooknames[(int)ar->event]);  /* push event name */
+  if (ar->currentline >= 0)
+    lua_pushinteger(L, ar->currentline);  /* push current line */
+  else lua_pushnil(L);
+  lua_assert(lua_getinfo(L, "lS", ar));
+  lua_call(L, 2, 0);  /* call hook function */
+}
+
+
 /*
 ** Call hook function registered at hook table for the current
 ** thread (if there is one)
 */
 static void hookf (lua_State *L, lua_Debug *ar) {
-  static const char *const hooknames[] =
-    {"call", "return", "line", "count", "tail call"};
   lua_getfield(L, LUA_REGISTRYINDEX, HOOKKEY);
   lua_pushthread(L);
-  if (lua_rawget(L, -2) == LUA_TFUNCTION) {  /* is there a hook function? */
-    lua_pushstring(L, hooknames[(int)ar->event]);  /* push event name */
-    if (ar->currentline >= 0)
-      lua_pushinteger(L, ar->currentline);  /* push current line */
-    else lua_pushnil(L);
-    lua_assert(lua_getinfo(L, "lS", ar));
-    lua_call(L, 2, 0);  /* call hook function */
-  }
+  if (lua_rawget(L, -2) == LUA_TFUNCTION)  /* is there a hook function? */
+    commonhookf(L, ar);
+}
+
+
+/*
+** Call registered global hook function (if there is one)
+*/
+static void globalhookf (lua_State *L, lua_Debug *ar) {
+  /* is there a hook function? */
+  if (lua_getfield(L, LUA_REGISTRYINDEX, GLOBALHOOKKEY) == LUA_TFUNCTION)
+    commonhookf(L, ar);
 }
 
 
@@ -408,6 +429,35 @@ static int db_gethook (lua_State *L) {
 }
 
 
+static int db_setglobalhook (lua_State *L) {
+  lua_Hook func;
+  if (lua_isnoneornil(L, 1)) {  /* no hook? */
+    lua_settop(L, 1);
+    func = NULL;  /* turn off hooks */
+  }
+  else {
+    luaL_checktype(L, 1, LUA_TFUNCTION);
+    func = globalhookf;
+  }
+  lua_pushvalue(L, 1);  /* value (hook function) */
+  lua_setfield(L, LUA_REGISTRYINDEX, GLOBALHOOKKEY);
+  lua_setglobalhook(L, func);
+  return 0;
+}
+
+
+static int db_getglobalhook (lua_State *L) {
+  lua_Hook globalhook = lua_getglobalhook(L);
+  if (globalhook == NULL)  /* no hook? */
+    luaL_pushfail(L);
+  else if (globalhook != globalhookf)  /* external hook? */
+    lua_pushliteral(L, "external hook");
+  else  /* hook function must exist */
+    lua_getfield(L, LUA_REGISTRYINDEX, GLOBALHOOKKEY);
+  return 1;
+}
+
+
 static int db_debug (lua_State *L) {
   for (;;) {
     char buffer[250];
@@ -451,6 +501,7 @@ static int db_setcstacklimit (lua_State *L) {
 static const luaL_Reg dblib[] = {
   {"debug", db_debug},
   {"getuservalue", db_getuservalue},
+  {"getglobalhook", db_getglobalhook},
   {"gethook", db_gethook},
   {"getinfo", db_getinfo},
   {"getlocal", db_getlocal},
@@ -460,6 +511,7 @@ static const luaL_Reg dblib[] = {
   {"upvaluejoin", db_upvaluejoin},
   {"upvalueid", db_upvalueid},
   {"setuservalue", db_setuservalue},
+  {"setglobalhook", db_setglobalhook},
   {"sethook", db_sethook},
   {"setlocal", db_setlocal},
   {"setmetatable", db_setmetatable},

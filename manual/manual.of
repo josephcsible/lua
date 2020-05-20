@@ -4692,6 +4692,13 @@ this value is always equal to @id{nparams}.)
 
 }
 
+@APIEntry{lua_Hook lua_getglobalhook (lua_State *L);|
+@apii{0,0,-}
+
+Returns the current global hook function.
+
+}
+
 @APIEntry{lua_Hook lua_gethook (lua_State *L);|
 @apii{0,0,-}
 
@@ -4889,6 +4896,30 @@ or zero in case of error.
 For more details about this function,
 see @Lid{debug.setcstacklimit},
 its equivalent in the standard library.
+
+}
+
+@APIEntry{void lua_setglobalhook (lua_State *L, lua_Hook f);|
+@apii{0,0,-}
+
+Similar to @Lid{lua_sethook}, but with the following differences:
+@itemize{
+
+@item{This hook is global to all threads of the state.
+}
+
+@item{The @id{mask} for the global hook is always this:
+@verbatim{
+LUA_MASKCALL | LUA_MASKRET | LUA_MASKCOUNT
+}
+}
+
+@item{The @id{count} for the global hook is always 1.
+}
+
+}
+
+Hooks are disabled by setting @id{f} to @id{NULL}.
 
 }
 
@@ -8547,6 +8578,15 @@ within any function and so have no direct access to local variables.
 
 }
 
+@LibEntry{debug.getglobalhook ()|
+
+Returns the current global hook function,
+as set by the @Lid{debug.setglobalhook} function.
+
+Returns @fail if there is no active global hook.
+
+}
+
 @LibEntry{debug.gethook ([thread])|
 
 Returns the current hook settings of the thread, as three values:
@@ -8689,6 +8729,27 @@ If a call does not respect some restriction,
 it returns a false value.
 Otherwise,
 the call returns the old limit.
+
+}
+
+@LibEntry{debug.setglobalhook (hook)|
+
+Sets the given function as the global debug hook.
+The hook will be called every time Lua calls or returns from a function,
+as well as after every instruction.
+
+When called without arguments,
+@Lid{debug.setglobalhook} turns off the global hook.
+
+When the hook is called, its first parameter is a string
+describing the event that has triggered its call:
+@T{"call"}, @T{"tail call"}, @T{"return"},
+and @T{"count"}.
+Inside a hook,
+you can call @id{getinfo} with @N{level 2} to get more information about
+the running function.
+(@N{Level 0} is the @id{getinfo} function,
+and @N{level 1} is the hook function.)
 
 }
 
