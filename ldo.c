@@ -311,7 +311,7 @@ void luaD_hook (lua_State *L, lua_Hook hook, int event, int line,
 ** active.
 */
 void luaD_hookcall (lua_State *L, CallInfo *ci) {
-  lua_Hook globalhook = G(L)->globalhook;
+  lua_Hook globalhook = LUA_ATOMIC_LOAD_ACQUIRE(G(L)->globalhook);
   int hook = (ci->callstatus & CIST_TAIL) ? LUA_HOOKTAILCALL : LUA_HOOKCALL;
   Proto *p;
   if (!globalhook && !(L->hookmask & LUA_MASKCALL))  /* some other hook? */
@@ -329,7 +329,7 @@ void luaD_hookcall (lua_State *L, CallInfo *ci) {
 static StkId rethook (lua_State *L, CallInfo *ci, StkId firstres, int nres) {
   ptrdiff_t oldtop = savestack(L, L->top);  /* hook may change top */
   int delta = 0;
-  lua_Hook globalhook = G(L)->globalhook;
+  lua_Hook globalhook = LUA_ATOMIC_LOAD_ACQUIRE(G(L)->globalhook);
   if (isLuacode(ci)) {
     Proto *p = clLvalue(s2v(ci->func))->p;
     if (p->is_vararg)
@@ -472,7 +472,7 @@ void luaD_call (lua_State *L, StkId func, int nresults) {
      Cfunc: {
       int n;  /* number of returns */
       CallInfo *ci;
-      lua_Hook globalhook = G(L)->globalhook;
+      lua_Hook globalhook = LUA_ATOMIC_LOAD_ACQUIRE(G(L)->globalhook);
       checkstackp(L, LUA_MINSTACK, func);  /* ensure minimum stack size */
       ci = next_ci(L);
       ci->nresults = nresults;

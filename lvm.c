@@ -1044,7 +1044,7 @@ void luaV_finishOp (lua_State *L) {
 
 
 
-#define updatetrap(ci)  (trap = ci->u.l.trap || G(L)->globalhook)
+#define updatetrap(ci)  (trap = ci->u.l.trap || LUA_ATOMIC_LOAD_ACQUIRE(G(L)->globalhook))
 
 #define updatebase(ci)	(base = ci->func + 1)
 
@@ -1134,7 +1134,7 @@ void luaV_execute (lua_State *L, CallInfo *ci) {
 #include "ljumptab.h"
 #endif
  tailcall:
-  trap = L->hookmask || G(L)->globalhook;
+  trap = L->hookmask || LUA_ATOMIC_LOAD_ACQUIRE(G(L)->globalhook);
   cl = clLvalue(s2v(ci->func));
   k = cl->p->k;
   pc = ci->u.l.savedpc;

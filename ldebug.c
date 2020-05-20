@@ -169,12 +169,12 @@ LUA_API int lua_gethookcount (lua_State *L) {
 ** gcc ensures that for all platforms where it runs).
 */
 LUA_API void lua_setglobalhook (lua_State *L, lua_Hook func) {
-  G(L)->globalhook = func;
+  LUA_ATOMIC_STORE_RELEASE(G(L)->globalhook, func);
 }
 
 
 LUA_API lua_Hook lua_getglobalhook (lua_State *L) {
-  return G(L)->globalhook;
+  return LUA_ATOMIC_LOAD_ACQUIRE(G(L)->globalhook);
 }
 
 
@@ -810,7 +810,7 @@ static int changedline (const Proto *p, int oldpc, int newpc) {
 
 int luaG_traceexec (lua_State *L, const Instruction *pc) {
   CallInfo *ci = L->ci;
-  lua_Hook globalhook = G(L)->globalhook;
+  lua_Hook globalhook = LUA_ATOMIC_LOAD_ACQUIRE(G(L)->globalhook);
   lu_byte mask = L->hookmask;
   int counthook;
   if (!globalhook && !(mask & (LUA_MASKLINE | LUA_MASKCOUNT))) {  /* no hooks? */

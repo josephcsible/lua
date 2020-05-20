@@ -29,6 +29,38 @@
 #define LUA_AUTHORS	"R. Ierusalimschy, L. H. de Figueiredo, W. Celes"
 
 
+/*
+** Stuff to use atomics if able, or falling back to the technically-incorrect
+** but probably good enough "volatile" if not
+*/
+#if defined(__cplusplus) && __cplusplus >= 201103L
+
+/* C++11 atomics */
+#include <atomic>
+
+#define LUA_ATOMIC(t) std::atomic<t>
+#define LUA_ATOMIC_LOAD_ACQUIRE(obj) obj.load(std::memory_order_acquire)
+#define LUA_ATOMIC_STORE_RELEASE(obj, desired) obj.store(desired, std::memory_order_release)
+
+#elif __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
+
+/* C11 atomics */
+#include <stdatomic.h>
+
+#define LUA_ATOMIC(t) _Atomic(t)
+#define LUA_ATOMIC_LOAD_ACQUIRE(obj) atomic_load_explicit(&obj, memory_order_acquire)
+#define LUA_ATOMIC_STORE_RELEASE(obj, desired) atomic_store_explicit(&obj, desired, memory_order_release)
+
+#else
+
+/* no atomics */
+#define LUA_ATOMIC(t) t volatile
+#define LUA_ATOMIC_LOAD_ACQUIRE(obj) (obj)
+#define LUA_ATOMIC_STORE_RELEASE(obj, desired) (obj = desired)
+
+#endif
+
+
 /* mark for precompiled code ('<esc>Lua') */
 #define LUA_SIGNATURE	"\x1bLua"
 

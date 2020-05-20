@@ -32,7 +32,7 @@
 #define LUA_INITVARVERSION	LUA_INIT_VAR LUA_VERSUFFIX
 
 
-static lua_State *globalL = NULL;
+static LUA_ATOMIC(lua_State *) globalL;
 
 static const char *progname = LUA_PROGNAME;
 
@@ -48,6 +48,16 @@ static void lstop (lua_State *L, lua_Debug *ar) {
 
 
 /*
+** If pointers aren't lock-free, then signal handlers can't safely set them,
+** since what they interrupted might be holding the lock they need to take,
+** resulting in a deadlock. Fail at compile time if we detect that.
+*/
+#if defined(ATOMIC_POINTER_LOCK_FREE) && ATOMIC_POINTER_LOCK_FREE != 2
+#error "Hooks can't be safely set from signal handlers!"
+#endif
+
+
+/*
 ** Function to be called at a C signal. Because a C signal cannot
 ** just change a Lua state (as there is no proper synchronization),
 ** this function only sets a hook that, when called, will stop the
@@ -55,7 +65,7 @@ static void lstop (lua_State *L, lua_Debug *ar) {
 */
 static void laction (int i) {
   signal(i, SIG_DFL); /* if another SIGINT happens, terminate process */
-  lua_setglobalhook(globalL, lstop);
+  lua_setglobalhook(LUA_ATOMIC_LOAD_ACQUIRE(globalL), lstop);
 }
 
 
@@ -133,7 +143,7 @@ static int docall (lua_State *L, int narg, int nres) {
   int base = lua_gettop(L) - narg;  /* function index */
   lua_pushcfunction(L, msghandler);  /* push message handler */
   lua_insert(L, base);  /* put it under function and args */
-  globalL = L;  /* to be available to 'laction' */
+  LUA_ATOMIC_STORE_RELEASE(globalL, L);  /* to be available to 'laction' */
   signal(SIGINT, laction);  /* set C-signal handler */
   status = lua_pcall(L, narg, nres, base);
   signal(SIGINT, SIG_DFL); /* reset C-signal handler */
